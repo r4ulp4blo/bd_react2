@@ -1,0 +1,99 @@
+CREATE TYPE autor_car AS (
+    autor VARCHAR(255),
+    caracteristicas TEXT
+);
+CREATE TYPE nombre_ap AS (
+    nombre VARCHAR(255),
+    apellido VARCHAR(255)
+);
+CREATE TABLE usuario (
+    id_usuario SERIAL PRIMARY KEY,
+    nombre_apellido nombre_ap NOT NULL,
+    correo VARCHAR(255) NOT NULL UNIQUE,
+    contrasena VARCHAR(25) NOT NULL,
+    rol VARCHAR(20) CHECK (rol IN ('administrador', 'usuario')) NOT NULL
+);
+
+CREATE TABLE libros (
+    id_libro SERIAL PRIMARY KEY,
+    titulo VARCHAR(255) NOT NULL,
+    datos_autor_caracteristicas autor_car,
+    genero VARCHAR(100),
+    enlace_img VARCHAR(255),
+    enlace_pdf VARCHAR(255),
+    estado VARCHAR(20) NOT NULL
+);
+CREATE TABLE reserva (
+    id_reserva SERIAL PRIMARY KEY,
+    id_libro INTEGER REFERENCES libros(id_libro) NOT NULL,
+    id_usuario INTEGER REFERENCES usuario(id_usuario) NOT NULL,
+    fecha_reserva TIMESTAMP DEFAULT current_timestamp,
+    fecha_expiracion TIMESTAMP,
+    FOREIGN KEY (id_libro, id_usuario) UNIQUE (id_libro, id_usuario)
+);
+CREATE TABLE historial (
+    id_historial SERIAL PRIMARY KEY,
+    id_reserva INTEGER REFERENCES reserva(id_reserva) NOT NULL,
+    fecha_registro TIMESTAMP DEFAULT current_timestamp,
+    FOREIGN KEY (id_reserva) UNIQUE (id_reserva)
+);
+
+CREATE OR REPLACE FUNCTION insertar_libro(
+    p_titulo VARCHAR(255),
+    p_autor VARCHAR(255),
+    p_caracteristicas TEXT,
+    p_genero VARCHAR(100),
+    p_enlace_img VARCHAR(255),
+    p_enlace_pdf VARCHAR(255),
+	p_estado VARCHAR(30)
+) RETURNS VOID AS $$
+BEGIN
+    INSERT INTO libros (titulo, datos_autor_caracteristicas, genero, enlace_img, enlace_pdf, estado)
+    VALUES (
+        p_titulo,
+        ROW(p_autor, p_caracteristicas),
+        p_genero,
+        p_enlace_img,
+        p_enlace_pdf,
+	p_estado
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION insertar_usuario(
+    p_nombre_apellido nombre_ap,
+    p_correo VARCHAR(255),
+    p_contrasena VARCHAR(255),
+    p_rol VARCHAR(20)
+) RETURNS VOID AS $$
+BEGIN
+    INSERT INTO usuarios (nombre_apellido, correo, contrasena, rol)
+    VALUES (p_nombre_apellido, p_correo, p_contrasena, p_rol);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION agregar_reserva(
+    in libro_id INTEGER,
+    in usuario_id INTEGER,
+    in fecha_expiracion TIMESTAMP
+) RETURNS VOID AS $$
+BEGIN
+    INSERT INTO reserva (id_libro, id_usuario, fecha_expiracion)
+    VALUES (libro_id, usuario_id, fecha_expiracion);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION actualizar_enlace_img(
+    in_p_id_libro INT,
+    in_p_enlace_img VARCHAR(255)
+) RETURNS VOID AS
+$$
+BEGIN
+    UPDATE libros
+    SET enlace_img = in_p_enlace_img
+    WHERE id_libro = in_p_id_libro;
+END;
+$$ LANGUAGE plpgsql;
+
+
+

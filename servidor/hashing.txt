@@ -1,0 +1,50 @@
+
+const express = require('express');
+const bodyParser = require('body-parser');
+const pgp = require('pg-promise')();
+const bcrypt = require('bcrypt');
+const crypto = require('crypto'); // Necesario para generar tokens únicos
+
+const app = express();
+const port = 3000;
+
+// Configura la conexión a la base de datos PostgreSQL
+const db = pgp('postgres://usuario:contraseña@localhost:5432/nombre_de_la_base_de_datos');
+
+// Middleware para analizar el cuerpo de las solicitudes JSON
+app.use(bodyParser.json());
+
+// Función para generar un token único
+function generarToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// Ruta para habilitar 2FA y generar un token de recuperación de contraseña
+app.post('/habilitar-2fa', async (req, res) => {
+  try {
+    const { usuarioId } = req.body;
+
+    // Verifica el rol del usuario antes de habilitar 2FA
+    const usuario = await db.one('SELECT * FROM usuario WHERE id_usuario = $1', usuarioId);
+
+    if (usuario.rol !== 'cliente') {
+      return res.status(400).json({ mensaje: 'Solo los usuarios clientes pueden habilitar 2FA.' });
+    }
+
+    // Genera un token de recuperación de contraseña único
+    const tokenRecuperacion = generarToken();
+
+    // Inserta el token en la base de datos asociado al usuario
+    await db.none('UPDATE usuario SET secreto_2fa = $1, token_recuperacion = $2 WHERE id_usuario = $3', [contraseñaHash, tokenRecuperacion, usuarioId]);
+
+    res.status(201).json({ mensaje: '2FA habilitado con éxito para el usuario cliente. Token de recuperación generado.' });
+  } catch (error) {
+    console.error('Error al habilitar 2FA:', error);
+    res.status(500).json({ mensaje: 'Error en el servidor.' });
+  }
+});
+
+
+
+
+
